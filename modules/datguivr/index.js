@@ -119,7 +119,7 @@ const GUIVR = (function DATGUIVR(){
   */
   function createInput( inputObject = new THREE.Group() ){
     const input = {
-      raycast: new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3() ),
+      raycast: inputObject.renderer ? inputObject.renderer.raycaster : new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3() ),
       laser: createLaser(),
       cursor: createCursor(),
       object: inputObject,
@@ -216,7 +216,7 @@ const GUIVR = (function DATGUIVR(){
 
     input.laser.pressed = function( flag ){
       // only pay attention to presses over the GUI
-      if (flag && (input.intersections.length > 0)) {
+      if (flag && (input.intersections && input.intersections.length > 0)) {
         input.pressed = true;
       } else {
         input.pressed = false;
@@ -416,15 +416,10 @@ const GUIVR = (function DATGUIVR(){
 
 
   /*
-    Perform the necessary updates, raycasts on its own RAF.
+    Perform the necessary updates, raycasts
   */
 
-  const tPosition = new THREE.Vector3();
-  const tDirection = new THREE.Vector3( 0, 0, -1 );
-  const tMatrix = new THREE.Matrix4();
-
   function update() {
-    requestAnimationFrame( update );
 
     var hitscanObjects = getVisibleHitscanObjects();
 
@@ -433,18 +428,16 @@ const GUIVR = (function DATGUIVR(){
     }
 
     inputObjects.forEach( function( {box,object,raycast,laser,cursor} = {}, index ){
-      object.updateMatrixWorld();
 
-      tPosition.set(0,0,0).setFromMatrixPosition( object.matrixWorld );
-      tMatrix.identity().extractRotation( object.matrixWorld );
-      tDirection.set(0,0,-1).applyMatrix4( tMatrix ).normalize();
+      let direction = new THREE.Vector3( 0, 0, -1 ).applyQuaternion( object.armModel.pose.orientation );
 
-      raycast.set( tPosition, tDirection );
+      raycast.set( object.armModel.pose.position, direction);
 
-      laser.geometry.vertices[ 0 ].copy( tPosition );
+      laser.geometry.vertices[ 0 ].copy( object.armModel.pose.position );
 
-      //  debug...
-      // laser.geometry.vertices[ 1 ].copy( tPosition ).add( tDirection.multiplyScalar( 1 ) );
+      updateLaserForArmModel(laser, object.armModel);
+
+      // laser.visible = true;
 
       const intersections = raycast.intersectObjects( hitscanObjects, false );
       parseIntersections( intersections, laser, cursor );
@@ -471,6 +464,15 @@ const GUIVR = (function DATGUIVR(){
     laser.geometry.computeBoundingSphere();
     laser.geometry.computeBoundingBox();
     laser.geometry.verticesNeedUpdate = true;
+  }
+
+  function updateLaserForArmModel(laser, armModel) {
+    var position = new THREE.Vector3().copy(armModel.pose.position);
+    laser.geometry.vertices[ 1 ].copy(position);
+    laser.visible = true;
+    laser.geometry.computeBoundingSphere();
+    laser.geometry.computeBoundingBox();
+    laser.geometry.verticesNeedUpdate = true
   }
 
   function parseIntersections( intersections, laser, cursor ){
@@ -515,8 +517,6 @@ const GUIVR = (function DATGUIVR(){
     return intersections;
   }
 
-  update();
-
 
 
 
@@ -527,6 +527,7 @@ const GUIVR = (function DATGUIVR(){
 
   return {
     create,
+    update,
     addInputObject,
     enableMouse,
     disableMouse
@@ -595,9 +596,9 @@ function bindViveController( input, controller, pressed, gripped ){
   controller.addEventListener( 'gripsdown', ()=>gripped( true ) );
   controller.addEventListener( 'gripsup', ()=>gripped( false ) );
 
-  const gamepad = controller.getGamepad();
+  const gamepad = controller.gamepad;
   function vibrate( t, a ){
-    if( gamepad && gamepad.hapticActuators.length > 0 ){
+    if( gamepad && gamepad.hapticActuators && gamepad.hapticActuators.length > 0 ){
       gamepad.hapticActuators[ 0 ].pulse( t, a );
     }
   }

@@ -101,7 +101,7 @@ export function create( { group, panel } = {} ){
     }
 
     else{
-      tempMatrix.getInverse( inputObject.matrixWorld );
+      tempMatrix.getInverse( inputObject.cameraGroup.matrixWorld );
 
       folder.matrix.premultiply( tempMatrix );
       folder.matrix.decompose( folder.position, folder.quaternion, folder.scale );
@@ -139,7 +139,7 @@ export function create( { group, panel } = {} ){
         return;
       }
 
-      folder.matrix.premultiply( inputObject.matrixWorld );
+      folder.matrix.premultiply( inputObject.cameraGroup.matrixWorld );
       folder.matrix.decompose( folder.position, folder.quaternion, folder.scale );
       oldParent.add( folder );
       oldParent = undefined;
